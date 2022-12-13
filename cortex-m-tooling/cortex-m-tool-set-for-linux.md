@@ -1,32 +1,36 @@
-# Tool set for cortex-m dev on Linux from the ground up: how to and what for.
+# Tool set for cortex-m dev on Linux from the ground up. Common principals.
 
-## 1 Step by step quick start guide
+## 1 What is the cross compiling
 
-First of all, if you are not familiar with how programs are built from source, what the preprocessor, compiler, and linker do, I highly recommend you read [this post](https://allthingsembedded.com/2018/12/29/cross-compiling-for-embedded-devices/).
+First of all, if you are not familiar with how programs are built from source, what the preprocessor, compiler, and linker do, I highly recommend you to get familiar with it. For example, you can read [this post](https://allthingsembedded.com/2018/12/29/cross-compiling-for-embedded-devices/). It is necessarily because the building any firmware for any MCU is a cross-compiling.<br>
+In short terms any firmware and software building process includes the following steps:
+1. Preprocessing. During this step all the preprocessor directives such as `#define` and `#include` substitutes by corresponding lines of code. All `#define` are replaced by defining values and all `#include`'s by a content of header files in the source file.
+2. Compilation. This stage takes care of translating all the source code to the assembly language required for the target processor. Besides the translation, an optimization is performed on this step, which can reduce the size of the code and increase performance.
+3. Assembly. The assembler converts each of the instructions into machine code (object code) that can be run directly on the target. The resulting object file also includes information about the symbols required and contained within the code.
+4. Linkage. The linker takes care of resolving missing symbols and can perform optimizations such as removing unused code and data. It basically merges all object files into a single executable. The linker can also link other code contained in libraries (static or shared).
+
+// FIXME: Insert some beautiful picture.
+
+The term "cross-compiling" points out that all these steps (except the preprocessing) perform on the machine (a build host) with a different architecture and/or operating system from the one on which the resulting binary will run.<br>
+To perform the cross-comping you need an appropriate toolchain that usually include **compilers**(for C, C++ and ASM), and a **linker**. It also may include some additional tools like **gdb**, **objcopy** etc.
 
 ### 1.1 GNU toolchain
 
-Use instruction from [this pretty good guide](https://askubuntu.com/a/1243405) from the *__askubuntu__* website if it still avainable.
+As stated in [the message](https://askubuntu.com/a/1243405) from [Aleksander Khoroshko](https://askubuntu.com/users/1086716/aleksander-khoroshko) on the [askubuntu.com](https://askubuntu.com/) website,
+>It turned out that ARM decided to make our life easier (sarcasm) by deprecating the use of PPA - their page at launchpad now has an anouncement: "... all new binary and source packages will not be released on Launchpad henceforth ...".<br>So, to make use of their latest arm-none-eabi-gdb you have to install gcc-arm-embedded manually.
 
-If the above link is not available, here is the short one:
+So, if you are lucky and package repository of your operation system has an up to date version of ARM GNU Toolchain, you can just install it. If not, you have to do as follow:
 
-Remove arm-none-eabi toolchain if it was installed before:
+0. if you have installed any version of arm-none-eabi toolchain, you had better delete it to avoid possible problems related to the different versions;
+1. download the actual version of the toolchain from the ARM's website ([link](https://developer.arm.com/downloads/-/gnu-rm));
+2. unpack it in the directory you want, and (for example) make appropriate aliases for all the needed tools or (according to Aleksander's message above) make symbolic links in your `/usr/bin/` directory.
+~~I personally prefer to make aliases.~~
 
-`sudo apt remove gcc-arm-none-eabi`
-
-Download latest version of an [arm gnu toolchain](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads) from the ARM oficial website.
-
-Put the downloaded archive to the dirrectory you want.
-
-Unpack the archive. For example, you can use
-
-`tar -xf <name-of-the-file>`
-
-Create links so that binaries are accessible system-wide:
-
-`sudo ln -s </path/to/dir/with/toolchain/bins/>arm-none-eabi-<tool> /usr/bin/arm-none-eabi-<tool>`
-
-where `<tool>` - one of the gnu utils: `gcc`, `g++`, `gdb`, `size`, `objcopy`.
+>**Tips:**<br>
+To unpack an archive you can use, for example,<br>
+`tar -xf </name/of/the/archive>`<br>
+// FIXME:
+To create an alias ...
 
 Check if it works:
 
@@ -36,15 +40,15 @@ If something not works, try to install dependencies. ARM's "full installation in
 
 ### 1.2 Build system
 
-I prefer to use GNU CMake and will relay on it further. If you have other preferences, please adapt the further instructions to your favorite build system.
+I prefer to use CMake and will relay on it further. If you have other preferences, please adapt the further instructions to your favorite build system.
 
 Create a directory for your new awesome project:
 
-`mkdir -p ~/<my-awesome-project>`
+`mkdir -p ~/path/to/my/awesome/project`
 
 Add to you project directory a file named `CMakeLists.txt` and fill it with the following content:
 
-**Attention!<br>All the text placed between `<>` braces you must replace according to your needs/requirements or you cat leave it "as is" if it fits you. If some variables or commands (it would be whole strings) placed between `[]` braces - it is optional but may be necessary for some platforms. I made it intentionally in the source code to force you carefully trace through all the instructions to avoid possible mismatch with your environment.<br>To get more information about specific CMake function refer to the [CMake documentation](https://cmake.org/documentation/)**
+**Attention!<br>All the text placed between `<>` braces you must be replaced according to your needs/requirements or you cat leave it "as is" if it fits you. If some variables or commands (it would be whole strings) placed between `[]` braces - it is optional but may be necessary for some platforms. I made it intentionally in the source code to force you carefully trace through all the instructions to avoid possible mismatch with your environment.<br>To get more information about specific CMake function refer to the [CMake documentation](https://cmake.org/documentation/)**
 
 ``` cmake
 cmake_minimum_required(VERSION <3.20>)
@@ -70,33 +74,33 @@ set(ARCH <armv8-m.base>)
 # Path to the vendor's hardware-specific libraries
 set(VENDOR_LIBS
   <${CMAKE_SOURCE_DIR}/GD32L23x_Firmware_Library>
-)
+  )
 
 # PATHS =====================================================
 # CMSIS path ------------------------------------------------
 set(CMSIS_PATH
   <${VENDOR_LIBS}/CMSIS>
-)
+  )
 # GD32 SPL path --------------------------------------------
 set(SPL_PATH
   <${VENDOR_LIBS}/GD32L23x_standard_peripheral>
-)
+  )
 
 # LINKER SCRIPT =============================================
 set(LINKER_SCRIPT
   <${CMAKE_SOURCE_DIR}/GD32L233Rx.ld>
-)
+  )
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 # C/C++ SOURCES =============================================
 # CMSIS core sources ----------------------------------------
 file(GLOB CMSIS_CORE_SRC CONFIGURE_DEPENDS
   <${CMSIS_PATH}/GD/GD32L23x/Source/*.c>
-)
-# GD32 SPL sources -----------------------------------------
+  )
+# GD32 SPL sources ------------------------------------------
 file(GLOB SPL_SRC CONFIGURE_DEPENDS
   <${SPL_PATH}/Source/*.c>
-)
+  )
 # project sources -------------------------------------------
 file(GLOB PRJ_SRC CONFIGURE_DEPENDS
   <${CMAKE_SOURCE_DIR}/*.c>
@@ -115,7 +119,7 @@ set(CMSIS_CORE_INC
 set(CMSIS_DEV_INC
   <${CMSIS_PATH}/GD/GD32L23x/Include/>
   )
-# GD32 SPL includes ----------------------------------------
+# GD32 SPL includes -----------------------------------------
 set(SPL_INC
   <${SPL_PATH}/Include/>
   )
@@ -142,7 +146,7 @@ include_directories(
   ${CMSIS_DEV_INC}
   ${SPL_INC}
   ${PRJ_INC}
-)
+  )
 
 set(CMAKE_C_FLAGS_DEBUG     "-O0 -g" CACHE INTERNAL "")
 set(CMAKE_C_FLAGS_RELEASE   "-Os")
@@ -165,7 +169,7 @@ target_compile_options(${PROJECT_NAME}.elf PRIVATE
   -masm-syntax-unified
   -fno-exceptions
   -fno-unwind-tables
-)
+  )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -fno-threadsafe-statics -fno-rtti" CACHE INTERNAL "")
 
@@ -183,7 +187,7 @@ target_link_options(${PROJECT_NAME}.elf PRIVATE
   -lnosys
   -Wl,--gc-sections
   -Wl,--print-memory-usage
-)
+  )
 
 add_custom_command(TARGET ${PROJECT_NAME}.elf
   POST_BUILD
@@ -192,7 +196,7 @@ add_custom_command(TARGET ${PROJECT_NAME}.elf
   COMMAND ${CMAKE_OBJDUMP} -S ${PROJECT_NAME}.elf > ${PROJECT_NAME}.lss
   COMMAND ${CMAKE_SIZE_UTIL} -B ${PROJECT_NAME}.elf
   COMMENT "Generating ${PROJECT_NAME}.hex, ${PROJECT_NAME}.bin"
-)
+  )
 
 ```
 The instruction
@@ -216,7 +220,7 @@ execute_process(
   COMMAND ${UTIL_SEARCH_CMD} ${TOOLCHAIN_PREFIX}gcc
   OUTPUT_VARIABLE BINUTILS_PATH
   OUTPUT_STRIP_TRAILING_WHITESPACE
-)
+  )
 
 get_filename_component(ARM_TOOLCHAIN_DIR ${BINUTILS_PATH} DIRECTORY)
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
